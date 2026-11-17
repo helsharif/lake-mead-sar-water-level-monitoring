@@ -1,0 +1,25 @@
+/Reference Scripts/
+/notes/
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+/outputs/
+/data/raw/
+/data/processed/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.egg-info/
+dist/
+build/
+credentials*.json
+service-account*.json
+*.pem
+*.key

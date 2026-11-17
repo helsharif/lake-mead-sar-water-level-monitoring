@@ -1,0 +1,39 @@
+[project]
+name = "lake-mead-sar-water-level-monitoring"
+version = "0.1.0"
+description = "Lake Mead water extent and shoreline elevation from Sentinel-1 and Google GEM-15"
+authors = [
+    { name = "Husayn El Sharif", email = "14345478+helsharif@users.noreply.github.com" }
+]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "earthengine-api>=1.7.53",
+    "geemap>=0.39.0",
+    "ipyleaflet>=0.20.0",
+    "jupyterlab>=4.6.6",
+    "numpy>=2.5.5",
+    "pandas>=3.1.1",
+    "plotly>=7.1.0",
+    "python-dotenv>=1.2.4",
+    "requests>=2.34.2",
+]
+
+[project.scripts]
+lake-mead = "lake_mead.cli:main"
+
+[project.optional-dependencies]
+static = [
+    "kaleido>=1.5.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = 'lake_mead'
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
