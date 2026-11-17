@@ -60,4 +60,4 @@ The MIT license covers project code. Data products retain their source terms.
 - `docs/` documents assumptions, sources, reproducibility and verification.
 - `tests/` contains statistical tests and credential-free Earth Engine graph checks.
 
-See [verification](docs/verification.md) for the observed data and execution status. Establish a local independent datum tie and inspect shoreline terrain gaps before treating the estimates as absolute reservoir levels.
+The live Overton Arm pilots yielded three eligible gauge matches across four dates. The spatial median ran high in both periods on the raw cross-datum comparison. See [verification](docs/verification.md) for the measured errors, area changes and terrain artifact. Establish a local independent datum tie and inspect shoreline terrain gaps before treating the estimates as absolute reservoir levels.

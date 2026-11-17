@@ -106,6 +106,8 @@ def run(args: argparse.Namespace, settings: Settings) -> None:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    for library in ("kaleido", "choreographer"):
+        logging.getLogger(library).setLevel(logging.WARNING)
     args = parser().parse_args()
     try:
         if args.end <= args.start:

@@ -7,6 +7,7 @@ from pathlib import Path
 
 import ee
 import plotly.graph_objects as go
+from plotly import io as pio
 from plotly.subplots import make_subplots
 import pandas as pd
 import requests
@@ -73,13 +74,23 @@ def interactive(analysis: Analysis, before: Water, after: Water | None = None,
     return result
 
 
-def _save(fig: go.Figure, output: Path, name: str) -> go.Figure:
-    fig.write_html(output / f"{name}.html", include_plotlyjs="directory")
-    if find_spec("kaleido") is not None:
+def _save_figures(figures: dict[str, go.Figure], output: Path) -> dict[str, go.Figure]:
+    for name, figure in figures.items():
+        figure.write_html(output / f"{name}.html", include_plotlyjs="directory")
+    if figures and find_spec("kaleido") is not None:
+        paths = [output / f"{name}.png" for name in figures]
         try:
-            fig.write_image(output / f"{name}.png", scale=2)
+            pio.write_images(list(figures.values()), paths, scale=2)
+            for figure, path in zip(figures.values(), paths, strict=True):
+                if not path.is_file():
+                    figure.write_image(path, scale=2)
         except (ValueError, RuntimeError) as error:
-            LOG.warning("Static export for %s failed: %s", name, error)
+            LOG.warning("Static export did not finish: %s", error)
+    return figures
+
+
+def _save(fig: go.Figure, output: Path, name: str) -> go.Figure:
+    _save_figures({name: fig}, output)
     return fig
 
 
@@ -103,9 +114,9 @@ def plot_results(areas: pd.DataFrame, estimates: pd.DataFrame, matched: pd.DataF
     fig = _chart("Acquisition date (MST)", "Observed water area (km²)")
     fig.add_scatter(x=pd.to_datetime(valid_area["date"]), y=valid_area["water_m2"] / 1e6,
                     mode="lines+markers", line_color=WATER_COLOR, name="Observed area")
-    figures["water_area"] = _save(fig, output, "water_area")
+    figures["water_area"] = fig
     if "elevation_m" not in estimates:
-        return figures
+        return _save_figures(figures, output)
     fig = _chart("Acquisition date (MST)", "Spatial block IQR (m)")
     measured = estimates.dropna(subset=["block_iqr_m"]).sort_values("date")
     for name, rows in measured.groupby("domain"):
@@ -114,10 +125,10 @@ def plot_results(areas: pd.DataFrame, estimates: pd.DataFrame, matched: pd.DataF
                         name=name.title(), text=rows["qc"],
                         hovertemplate="%{x|%Y-%m-%d}<br>IQR %{y:.2f} m<br>%{text}")
     if fig.data:
-        figures["shoreline_dispersion"] = _save(fig, output, "shoreline_dispersion")
+        figures["shoreline_dispersion"] = fig
     valid = estimates[estimates["qc"].eq("pass")].sort_values("date")
     if valid.empty:
-        return figures
+        return _save_figures(figures, output)
     fig = _chart("Acquisition date (MST)", "Shoreline estimate (m EGM96)")
     for name, rows in valid.groupby("domain"):
         dates = pd.to_datetime(rows["date"])
@@ -133,15 +144,15 @@ def plot_results(areas: pd.DataFrame, estimates: pd.DataFrame, matched: pd.DataF
                         customdata=rows[["block_q25_m", "block_q75_m"]].to_numpy(),
                         hovertemplate="%{x|%Y-%m-%d}<br>%{y:.2f} m EGM96<br>"
                         "Block quartiles %{customdata[0]:.2f}–%{customdata[1]:.2f} m")
-    figures["estimated_elevation"] = _save(fig, output, "estimated_elevation")
+    figures["estimated_elevation"] = fig
     fig = _chart("Shoreline estimate (m EGM96)", "Observed water area (km²)")
     joined = valid.merge(valid_area[["index", "water_m2"]], on="index")
     for name, rows in joined.groupby("domain"):
         fig.add_scatter(x=rows["elevation_m"], y=rows["water_m2"] / 1e6, mode="markers",
                         name=name.title(), marker_color=BASIN_COLORS.get(name), text=rows["date"])
-    figures["area_elevation"] = _save(fig, output, "area_elevation")
+    figures["area_elevation"] = fig
     if matched.empty or matched["residual_m"].isna().all():
-        return figures
+        return _save_figures(figures, output)
     paired = matched.dropna(subset=["residual_m"]).sort_values("date")
     raw = paired["comparison_basis"].iloc[0].startswith("unharmonized")
     gauge_label = "Gauge (m USGS 1912)" if raw else "Gauge (m EGM96, transformed)"
@@ -154,15 +165,15 @@ def plot_results(areas: pd.DataFrame, estimates: pd.DataFrame, matched: pd.DataF
     for name, rows in paired.groupby("domain"):
         fig.add_scatter(x=rows["comparison_gauge_m"], y=rows["elevation_m"], mode="markers",
                         name=name.title(), marker_color=BASIN_COLORS.get(name), text=rows["date"])
-    figures["gauge_comparison"] = _save(fig, output, "gauge_comparison")
+    figures["gauge_comparison"] = fig
     title = "Residuals include vertical datum differences" if raw else None
     fig = _chart("Acquisition date (MST)", "Estimate minus gauge (m)", title)
     fig.add_hline(y=0, line_color="#777777", line_dash="dot")
     for name, rows in paired.groupby("domain"):
         fig.add_scatter(x=pd.to_datetime(rows["date"]), y=rows["residual_m"],
                         mode="lines+markers", name=name.title(), line_color=BASIN_COLORS.get(name))
-    figures["gauge_residuals"] = _save(fig, output, "gauge_residuals")
-    return figures
+    figures["gauge_residuals"] = fig
+    return _save_figures(figures, output)
 
 
 def plot_thresholds(waters: list[tuple[str, Water]], output: Path) -> go.Figure:
@@ -202,13 +213,15 @@ def export_map(analysis: Analysis, before: Water, after: Water, output: Path,
     earlier = before.db.clip(analysis.bounds).visualize(min=-27, max=-4).blend(before_water)
     edges = shoreline.shoreline(after, analysis.settings).visualize(palette=["fff185"])
     later = terrain.blend(after_water).blend(edges)
-    if samples is not None and not samples.empty:
+    has_samples = samples is not None and not samples.empty
+    if has_samples:
         capped = samples.sample(n=min(500, len(samples)), random_state=11)
         points = ee.FeatureCollection([ee.Feature(ee.Geometry.Point([row.lon, row.lat]))
                                        for row in capped.itertuples()])
         later = later.blend(points.style(color="dd1959", pointSize=2))
+    later_label = "Water and shoreline samples" if has_samples else "Water and shoreline"
     titles = ("Study area and sampling windows", f"Sentinel-1 classification, {labels[0]}",
-              f"Water and shoreline sampling, {labels[1]}", "Observed water change")
+              f"{later_label}, {labels[1]}", "Observed water change")
     fig = make_subplots(rows=2, cols=2, subplot_titles=titles, vertical_spacing=.075)
     for index, image in enumerate((study, earlier, later, terrain.blend(gain).blend(loss))):
         url = image.getThumbURL({"region": analysis.bounds, "dimensions": 1000, "format": "png",
@@ -219,8 +232,10 @@ def export_map(analysis: Analysis, before: Water, after: Water, output: Path,
         fig.add_trace(go.Image(source=f"data:image/png;base64,{source}", hoverinfo="skip"),
                       row=index // 2 + 1, col=index % 2 + 1)
     locators = [(name.title(), BASIN_COLORS[name]) for name in analysis.domains]
-    classes = [("Water", WATER_COLOR), ("Shoreline", "#fff185"), ("Samples", "#dd1959"),
-               ("Exposed", CHANGE_COLORS[0]), ("Inundated", CHANGE_COLORS[1])]
+    classes = [("Water", WATER_COLOR), ("Shoreline", "#fff185")]
+    if has_samples:
+        classes.append(("Samples", "#dd1959"))
+    classes.extend([("Exposed", CHANGE_COLORS[0]), ("Inundated", CHANGE_COLORS[1])])
     for label, color in locators + classes:
         fig.add_scatter(x=[None], y=[None], mode="markers", name=label, showlegend=True,
                         marker=dict(color=color, symbol="square", size=11), hoverinfo="skip",
