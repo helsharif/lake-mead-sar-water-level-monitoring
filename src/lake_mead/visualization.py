@@ -80,7 +80,9 @@ def _save_figures(figures: dict[str, go.Figure], output: Path) -> dict[str, go.F
     if figures and find_spec("kaleido") is not None:
         paths = [output / f"{name}.png" for name in figures]
         try:
-            pio.write_images(list(figures.values()), paths, scale=2)
+            pio.write_images(list(figures.values()), paths, scale=2,
+                             width=[fig.layout.width for fig in figures.values()],
+                             height=[fig.layout.height for fig in figures.values()])
             for figure, path in zip(figures.values(), paths, strict=True):
                 if not path.is_file():
                     figure.write_image(path, scale=2)

@@ -14,7 +14,7 @@ The CLI retrieved 62 daily observations from RISE item 6123 for July–August 20
 
 ## Software and pilot checks
 
-The locked environment passed 15 tests covering statistics, data quality, Earth Engine expression construction and Plotly exports. The authenticated Sentinel-1 catalog query returned ten acquisitions across tracks 100 and 173 in July–August 2022. Track 173 had the greater search-window footprint. The Overton geemap view initialized 15 live layers with both dates, change classes and a modeled scenario.
+The locked environment passed 16 tests covering statistics, data quality, Earth Engine expression construction and Plotly exports. The authenticated Sentinel-1 catalog query returned ten acquisitions across tracks 100 and 173 in July–August 2022. Track 173 had the greater search-window footprint. The Overton geemap view initialized 15 live layers with both dates, change classes and a modeled scenario.
 
 An initial pilot with a historical footprint and minimum patch size allowed small detached dark areas to contribute candidate shorelines. The two July 2022 estimates both failed the spatial-dispersion screen, with block IQRs of 14.87 m and 13.07 m. The current workflow checks connectivity to historical persistent water and samples from the eligible terrain class. The pilot data and Plotly HTML and PNG figures are kept in local output directories.
 
@@ -23,6 +23,8 @@ With persistent-water anchors enabled, the live July 7–19 Overton comparison c
 The updated Overton pilot measured 30.008 km² on July 7 and 31.471 km² on July 19. Each date returned 1,500 eligible terrain samples, and the DTM had values at 60.1% and 62.2% of candidate landward cells before slope and plausibility screening. July 7 passed internal QC with a 6.52 m block IQR. The 337.68 m EGM96 estimate was 19.97 m above the gauge after unit conversion alone. The lower-quartile estimate was 18.13 m above the gauge and the DSM-screened estimate was 20.03 m above. July 19 failed internal QC with a 14.35 m block IQR. For this one matched date, MAE, RMSE and signed bias of the median all equal 19.97 m on the unharmonized basis, and R² is undefined. The discrepancy shows why spatial consistency alone is insufficient to establish accuracy. The pilot provides no basis for adopting Overton alone as a reservoir-wide water-level estimator.
 
 An independent higher-pool comparison used July 5 and July 11, 2020, on the same descending relative orbit (173). Both passed internal QC, with terrain block IQRs of 4.28 m and 4.62 m and classified water areas of 42.062 km² and 41.539 km². The spatial median had MAE 7.33 m, RMSE 7.34 m and bias +7.33 m on the unharmonized basis. The predictive R² of −6,228.16 reflects two readings separated by just 0.19 m, so it gives little information about generalization. The block lower quartile had raw MAE 5.77 m, and the DSM-screened median had raw MAE 7.32 m. The small samples and unresolved datum tie leave estimator ranking provisional.
+
+The contrast map for July 5, 2020, and July 7, 2022, showed 14.416 km² classified as exposed and 2.362 km² classified as inundated, a net decline of 12.054 km² in classified water within common Overton coverage. The later panel includes a reproducible display subsample of the extracted shoreline terrain locations.
 
 ### Higher-pool pilot command
 

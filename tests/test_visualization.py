@@ -1,5 +1,6 @@
 """Verify Plotly chart content and portable HTML export."""
 import pandas as pd
+import plotly.graph_objects as go
 
 from lake_mead import visualization
 
@@ -22,3 +23,20 @@ def test_plotly_result_bundle(tmp_path, monkeypatch):
     assert (tmp_path / "plotly.min.js").is_file()
     assert all("Plotly.newPlot" in (tmp_path / f"{key}.html").read_text(encoding="utf-8")
                for key in figures)
+
+
+def test_static_export_preserves_plotly_layout_size(tmp_path, monkeypatch):
+    monkeypatch.setattr(visualization, "find_spec", lambda name: object())
+
+    def write_images(figures, paths, *, width, height, scale):
+        assert len(figures) == 2
+        assert (width, height, scale) == ([950, 1200], [480, 1050], 2)
+        for path in paths:
+            path.write_bytes(b"test")
+
+    monkeypatch.setattr(visualization.pio, "write_images", write_images)
+    visualization._save_figures({
+        "chart": go.Figure().update_layout(width=950, height=480),
+        "map": go.Figure().update_layout(width=1200, height=1050),
+    }, tmp_path)
+    assert (tmp_path / "map.png").is_file()
